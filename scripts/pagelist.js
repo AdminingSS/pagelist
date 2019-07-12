@@ -100,15 +100,9 @@ class Pagelist {
 
         if(e.deltaY < 0) {
             this.prevSection();
-            if(this.checkBoundaries()) {
-                this.prevSection();
-            }
         }
         else if (e.deltaY > 0) {
             this.nextSection();
-            if(this.checkBoundaries()) {
-                this.nextSection()
-            }
         }
     }
 
