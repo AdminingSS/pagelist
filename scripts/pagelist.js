@@ -1,6 +1,6 @@
 class Pagelist {
 
-    constructor (options) {
+    constructor(options) {
 
         this.elem = options.elem;
 
@@ -8,14 +8,17 @@ class Pagelist {
             main: 'pagelist-main',
             section: 'pagelist-section'
         };
-        
+
         this.currentSection = 0;
-        this.currentSectionStart = 0;
-        this.currentSectionEnd = 0;
+        //this.currentSectionStart = 0;
+        //this.currentSectionEnd = 0;
         this.sectionsCount = 0;
         this.viewportSections = false;
+        this.topReached = false;
+        this.bottomReached = false;
         this.allowPrev = false;
         this.allowNext = false;
+        this.scrollBlock = false;
 
         this.init();
         //this.reInit();
@@ -42,20 +45,18 @@ class Pagelist {
 
         this.sectionsCount = this.pagelistSections.length;
 
-        if(this.viewportSections) {
+        if (this.viewportSections) {
             this.pagelistSections.forEach(function (element) {
                 element.classList.add('section-vh');
             })
         }
 
-        this.currentSectionStart = this.getTop(this.pagelistSections[this.currentSection]);
-        this.currentSectionEnd = this.currentSectionStart + this.pagelistSections[this.currentSection].scrollHeight;
+        //this.currentSectionStart = this.getTop(this.pagelistSections[this.currentSection]);
+        //this.currentSectionEnd = this.getTop(this.pagelistSections[this.currentSection]) + this.pagelistSections[this.currentSection].scrollHeight;
 
-        this.scrollToSection(this.currentSection);
+        this.scrollToSection(this.currentSection, 'start');
 
-        this.checkBoundaries();
-
-        window.addEventListener('wheel', this.handleScroll.bind(this), { passive: false });
+        window.addEventListener('wheel', this.handleScroll.bind(this), {passive: false});
 
         // window.addEventListener('resize', this.reInit.bind(this));
     }
@@ -70,67 +71,124 @@ class Pagelist {
     }
 
     checkBoundaries() {
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
 
-        if(this.currentSectionStart >= scrollTop && this.currentSection !== 0) {
-            this.allowPrev = true;
+        if (this.pagelistSections[this.currentSection].getBoundingClientRect().top >= 0) {
+            this.topReached = true;
         }
         else {
+            this.topReached = false;
             this.allowPrev = false;
         }
 
-        if(this.currentSectionEnd <= scrollTop + document.documentElement.clientHeight && this.currentSection !== this.sectionsCount - 1) {
-            this.allowNext = true;
+        if (this.pagelistSections[this.currentSection].getBoundingClientRect().bottom <= document.documentElement.clientHeight) {
+            this.bottomReached = true;
         }
         else {
+            this.bottomReached = false;
             this.allowNext = false;
         }
+        console.log(this.pagelistSections[this.currentSection].getBoundingClientRect().bottom);
 
-        return this.allowPrev || this.allowNext;
+        // const scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+        //
+        // if(this.currentSectionStart >= scrollTop && this.currentSection !== 0) {
+        //     this.allowPrev = true;
+        // }
+        // else {
+        //     this.allowPrev = false;
+        // }
+        //
+        // if(this.currentSectionEnd <= scrollTop + document.documentElement.clientHeight && this.currentSection !== this.sectionsCount - 1) {
+        //     this.allowNext = true;
+        // }
+        // else {
+        //     this.allowNext = false;
+        // }
+
+        return this.topReached || this.bottomReached;
     }
 
     handleScroll(e) {
-        if(this.checkBoundaries()) {
+        this.checkBoundaries();
+
+        if (((e.deltaY < 0 && this.topReached) || (e.deltaY > 0 && this.bottomReached)) || this.scrollBlock) {
             e.preventDefault();
             e.stopPropagation();
             e.stopImmediatePropagation();
+
+            if (!this.allowPrev && e.deltaY < 0) {
+                this.scrollBlock = true;
+                this.scrollToSection(this.currentSection, 'start');
+                setTimeout(() => {
+                    this.allowPrev = true;
+                    this.scrollBlock = false;
+                }, 500);
+
+            }
+
+            if (!this.allowNext && e.deltaY > 0) {
+                this.scrollBlock = true;
+                this.scrollToSection(this.currentSection, 'end');
+                setTimeout(() => {
+                    this.allowNext = true;
+                    this.scrollBlock = false;
+                }, 500);
+
+            }
         }
 
-        //this.checkBoundaries();
 
-        if(e.deltaY < 0) {
+
+        if (this.topReached && e.deltaY < 0 && this.allowPrev) {
             this.prevSection();
         }
-        else if (e.deltaY > 0) {
+        if (this.bottomReached && e.deltaY > 0 && this.allowNext) {
             this.nextSection();
         }
-    }
 
-    scrollToSection(number) {
-        console.log(this.getTop(this.pagelistSections[number]));
-        window.scrollTo(0, this.getTop(this.pagelistSections[number]));
+        // console.log('ap', this.allowPrev);
+        // console.log('an', this.allowNext);
+        //
+        // //this.checkBoundaries();
+        //
+        // if(e.deltaY < 0 && this.allowPrev) {
+        //     this.prevSection();
+        // }
+        // else if (e.deltaY > 0 && this.allowNext) {
+        //     this.nextSection();
+        // }
     }
 
     prevSection() {
         this.currentSection = Math.max(this.currentSection - 1, 0);
+        this.scrollToSection(this.currentSection, 'start');
 
-        this.currentSectionStart = this.getTop(this.pagelistSections[this.currentSection]);
-        this.currentSectionEnd = this.currentSectionStart + this.pagelistSections[this.currentSection].scrollHeight;
+        //this.checkBoundaries();
 
-        this.scrollToSection(this.currentSection);
+        //this.currentSectionStart = this.getTop(this.pagelistSections[this.currentSection]);
+        //this.currentSectionEnd = this.getTop(this.pagelistSections[this.currentSection]) + this.pagelistSections[this.currentSection].scrollHeight;
 
-        this.checkBoundaries();
     }
 
     nextSection() {
         this.currentSection = Math.min(this.currentSection + 1, this.sectionsCount - 1);
+        this.scrollToSection(this.currentSection, 'start');
 
-        this.currentSectionStart = this.getTop(this.pagelistSections[this.currentSection]);
-        this.currentSectionEnd = this.currentSectionStart + this.pagelistSections[this.currentSection].scrollHeight;
+        //this.checkBoundaries();
 
-        this.scrollToSection(this.currentSection);
+        //this.currentSectionStart = this.getTop(this.pagelistSections[this.currentSection]);
+        //this.currentSectionEnd = this.getTop(this.pagelistSections[this.currentSection]) + this.pagelistSections[this.currentSection].scrollHeight;
 
-        this.checkBoundaries();
+    }
+
+    scrollToSection(number, position) {
+
+        if (position === 'start') {
+            window.scrollTo(0, this.getTop(this.pagelistSections[number]));
+        }
+        else if (position === 'end') {
+            window.scrollTo(0, this.getTop(this.pagelistSections[number]) + this.pagelistSections[number].getBoundingClientRect().height - document.documentElement.clientHeight);
+        }
     }
 
     // reInit() {
